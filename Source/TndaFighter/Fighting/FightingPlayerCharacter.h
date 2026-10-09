@@ -32,6 +32,11 @@ protected:
 	UPROPERTY(EditAnywhere, Category ="Input")
 	UInputAction* MoveAction;
 
+	/** 2P 的方向鍵移動輸入。 */
+	UPROPERTY(EditAnywhere, Category = "Input")
+	TObjectPtr<UInputAction> P2MoveAction;
+
+
 	/** Class Defaults 指定 Boolean 攻擊動作；只綁 Started，未指定時保留既有移動。 */
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> AttackAction;
@@ -51,6 +56,12 @@ protected:
 
 	/** Enhanced Input 移動動作結束或取消時，立刻移除推擠意圖，避免鬆鍵後仍推動對手。 */
 	void StopMove(const FInputActionValue& Value);
+
+	/** 接收 2P 方向鍵輸入。 */
+	void P2Move(const FInputActionValue& Value);
+
+	/** 2P 放開方向鍵。 */
+	void P2StopMove(const FInputActionValue& Value);
 
 	/** 每次按下只送出一次 X；共用入口拒絕時不排隊或重試。 */
 	void Attack(const FInputActionValue& Value);

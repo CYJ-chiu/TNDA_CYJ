@@ -124,6 +124,19 @@ void AFightingPlayerCharacter::Move(const FInputActionValue& Value)
 	DoMove(MovementVector.X, MovementVector.Y);
 }
 
+void AFightingPlayerCharacter::P2Move(const FInputActionValue& Value)
+{
+	// 目前先確認 2P 方向鍵能正常觸發。
+	// 下一步再透過 GetOpponent() 將移動轉發給 CPU。
+	const FVector2D MovementVector = Value.Get<FVector2D>();
+}
+
+void AFightingPlayerCharacter::P2StopMove(const FInputActionValue& Value)
+{
+	// 目前先保留空實作。
+	// 下一步再加入停止 CPU 移動的功能。
+}
+
 void AFightingPlayerCharacter::StopMove(const FInputActionValue&)
 {
 	GroundPushIntent = FVector::ZeroVector;
@@ -511,6 +524,14 @@ void AFightingPlayerCharacter::SetupPlayerInputComponent(UInputComponent* Player
 		if (IsValid(AttackAction))
 		{
 			EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &AFightingPlayerCharacter::Attack);
+		}
+
+		if (IsValid(P2MoveAction))
+		{
+			EnhancedInputComponent->BindAction(P2MoveAction,ETriggerEvent::Triggered,this,&AFightingPlayerCharacter::P2Move);
+
+			EnhancedInputComponent->BindAction(P2MoveAction,ETriggerEvent::Completed,this,&AFightingPlayerCharacter::P2StopMove);
+            EnhancedInputComponent->BindAction(P2MoveAction,ETriggerEvent::Canceled,this,&AFightingPlayerCharacter::P2StopMove);
 		}
 	}
 }
