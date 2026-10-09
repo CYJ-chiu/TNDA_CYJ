@@ -267,7 +267,26 @@ void AFightingPlayerCharacter::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	ResolveGroundPushInteraction(DeltaSeconds);
 	DrawCombatDebug();
+
+	if (GEngine)
+	{
+		const FVector Pos = GetActorLocation();
+
+		GEngine->AddOnScreenDebugMessage(
+			1001,
+			0.0f,
+			FColor::Yellow,
+			FString::Printf(
+				TEXT("1P World Position: X=%.1f Y=%.1f Z=%.1f"),
+				Pos.X,
+				Pos.Y,
+				Pos.Z
+			)
+		);
+	}
 }
+
+
 
 void AFightingPlayerCharacter::ResolveGroundPushInteraction(float DeltaSeconds)
 {
@@ -283,6 +302,7 @@ void AFightingPlayerCharacter::ResolveGroundPushInteraction(float DeltaSeconds)
 		|| CurrentOpponent->GetCapsuleComponent()->GetCollisionResponseToChannel(ECC_Pawn) != ECR_Block)
 	{
 		return;
+	
 	}
 
 	// 推擠只解算地面 XY 平面；Capsule 半徑總和是實際接觸距離，微小容差只吸收碰撞解算後的數值間隙，
@@ -305,7 +325,21 @@ void AFightingPlayerCharacter::ResolveGroundPushInteraction(float DeltaSeconds)
 	const FVector CpuIntent = GetGroundMovementIntent(*CurrentOpponent);
 	const float PlayerTowardCpu = FVector::DotProduct(PlayerIntent, PlayerToCpuDirection);
 	const float CpuTowardPlayer = FVector::DotProduct(CpuIntent, -PlayerToCpuDirection);
-
+	
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			2002,
+			0.0f,
+			FColor::Cyan,
+			FString::Printf(
+				TEXT("P2 Toward 1P: %.2f | P2 Intent: X=%.2f Y=%.2f"),
+				CpuTowardPlayer,
+				CpuIntent.X,
+				CpuIntent.Y
+			)
+		);
+	}
 	// 雙方都有相向意圖時不比較速度或決定勝負，維持原生 Blocking Collision 的對頂結果；
 	// 兩人的主動加速度不會被清除，受阻 locomotion 因此仍能維持各自的移動動畫。
 	if (PlayerTowardCpu > PushTowardIntentThreshold && CpuTowardPlayer > PushTowardIntentThreshold)

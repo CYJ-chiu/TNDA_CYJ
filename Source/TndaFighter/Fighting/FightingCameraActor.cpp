@@ -57,6 +57,11 @@ bool AFightingCameraActor::InitializeForFighters(AFightingPlayerCharacter* InPla
 	}
 	Player = InPlayer;
 	Opponent = InCpu;
+
+	PreviousPlayerLocation = InPlayer->GetActorLocation();
+	PreviousCpuLocation = InCpu->GetActorLocation();
+	bHasPreviousFighterLocations = true;
+
 	const FVector InitialFocusLocation = AFightingCharacter::CalculateCombatMidpoint(
 		InPlayer->GetActorLocation(), InCpu->GetActorLocation())
 		+ FVector::UpVector * FocusHeight;
@@ -92,46 +97,124 @@ void AFightingCameraActor::Tick(float DeltaSeconds)
 	{
 		return;
 	}
-	ConstrainPlayerToMaxDistance(PlayerCharacter, CpuCharacter);
+	ConstrainFightersToMaxDistance(PlayerCharacter, CpuCharacter);
 	SetActorLocation(GetDesiredFocusLocation(PlayerCharacter, CpuCharacter));
 	CameraBoom->SetRelativeRotation(GetDesiredCameraRotation(PlayerCharacter, CpuCharacter));
 	CameraBoom->TargetArmLength = FMath::FInterpTo(
 		CameraBoom->TargetArmLength, GetDesiredCameraDistance(PlayerCharacter, CpuCharacter), DeltaSeconds, DistanceInterpolationSpeed);
 }
 
-void AFightingCameraActor::ConstrainPlayerToMaxDistance(AActor* PlayerActor, const AActor* OpponentActor) const
+void AFightingCameraActor::ConstrainFightersToMaxDistance(
+	ACharacter* PlayerCharacter,
+	ACharacter* CpuCharacter)
 {
-	const FVector PlayerLocation = PlayerActor->GetActorLocation();
-	const FVector OpponentLocation = OpponentActor->GetActorLocation();
-	FVector OpponentToPlayer = PlayerLocation - OpponentLocation;
-	OpponentToPlayer.Z = 0.0f;
-
-	// 邊界只看 XY 平面，跳躍高度不應縮小玩家可用的水平移動範圍。
-	const float FighterDistance = OpponentToPlayer.Size();
-	if (FighterDistance <= MaxFighterDistance || FighterDistance <= KINDA_SMALL_NUMBER)
+	if (!IsValid(PlayerCharacter) || !IsValid(CpuCharacter))
 	{
 		return;
 	}
 
-	const FVector OutwardDirection = OpponentToPlayer / FighterDistance;
-	FVector ConstrainedLocation = OpponentLocation + OutwardDirection * MaxFighterDistance;
-	// 只修正水平座標，保留玩家目前的跳躍或落下高度。
-	ConstrainedLocation.Z = PlayerLocation.Z;
-	// 使用 TeleportPhysics 直接校正位置，避免 Sweep 被場景碰撞擋住而持續留在邊界外。
-	PlayerActor->SetActorLocation(ConstrainedLocation, false, nullptr, ETeleportType::TeleportPhysics);
+	const FVector PlayerLocation = PlayerCharacter->GetActorLocation();
+	const FVector CpuLocation = CpuCharacter->GetActorLocation();
 
-	// 移除向外速度，但保留向內、沿邊界與垂直速度，避免角色持續頂住邊界抖動。
-	if (ACharacter* PlayerCharacter = Cast<ACharacter>(PlayerActor))
+	// 第一次執行時記錄位置。
+	if (!bHasPreviousFighterLocations)
 	{
-		if (UCharacterMovementComponent* MovementComponent = PlayerCharacter->GetCharacterMovement())
+		PreviousPlayerLocation = PlayerLocation;
+		PreviousCpuLocation = CpuLocation;
+		bHasPreviousFighterLocations = true;
+		return;
+	}
+
+	FVector CpuToPlayer = PlayerLocation - CpuLocation;
+	CpuToPlayer.Z = 0.0f;
+
+	const float Distance = CpuToPlayer.Size();
+
+	if (Distance > MaxFighterDistance &&
+		Distance > KINDA_SMALL_NUMBER)
+	{
+		const FVector Direction = CpuToPlayer / Distance;
+		const float ExcessDistance = Distance - MaxFighterDistance;
+
+		// 計算雙方這一幀實際移動多少。
+		FVector PlayerDelta = PlayerLocation - PreviousPlayerLocation;
+		FVector CpuDelta = CpuLocation - PreviousCpuLocation;
+
+		PlayerDelta.Z = 0.0f;
+		CpuDelta.Z = 0.0f;
+
+		// 正值代表角色往遠離對手的方向移動。
+		const float PlayerOutward = FMath::Max(
+			FVector::DotProduct(PlayerDelta, Direction),
+			0.0f
+		);
+
+		const float CpuOutward = FMath::Max(
+			FVector::DotProduct(CpuDelta, -Direction),
+			0.0f
+		);
+
+		const float TotalOutward = PlayerOutward + CpuOutward;
+
+		float PlayerShare = 0.5f;
+		float CpuShare = 0.5f;
+
+		// 根據雙方往外移動的距離，分配修正比例。
+		if (TotalOutward > KINDA_SMALL_NUMBER)
 		{
-			const float OutwardSpeed = FVector::DotProduct(MovementComponent->Velocity, OutwardDirection);
-			if (OutwardSpeed > 0.0f)
+			PlayerShare = PlayerOutward / TotalOutward;
+			CpuShare = CpuOutward / TotalOutward;
+		}
+
+		// 只修正水平位置，不影響跳躍高度。
+		FVector NewPlayerLocation =
+			PlayerLocation - Direction * ExcessDistance * PlayerShare;
+
+		FVector NewCpuLocation =
+			CpuLocation + Direction * ExcessDistance * CpuShare;
+
+		NewPlayerLocation.Z = PlayerLocation.Z;
+		NewCpuLocation.Z = CpuLocation.Z;
+
+		PlayerCharacter->SetActorLocation(NewPlayerLocation,false,nullptr,ETeleportType::TeleportPhysics);
+
+		CpuCharacter->SetActorLocation(NewCpuLocation,false,nullptr,ETeleportType::TeleportPhysics);
+
+		// 清除各自朝邊界外的速度，避免下一幀繼續頂住邊界。
+		auto RemoveOutwardVelocity =
+			[](ACharacter* Character, const FVector& OutwardDirection)
 			{
-				MovementComponent->Velocity -= OutwardDirection * OutwardSpeed;
-			}
+				UCharacterMovementComponent* Movement =
+					Character->GetCharacterMovement();
+
+				if (!Movement)
+				{
+					return;
+				}
+
+				const float OutwardSpeed =
+					FVector::DotProduct(Movement->Velocity, OutwardDirection);
+
+				if (OutwardSpeed > 0.0f)
+				{
+					Movement->Velocity -= OutwardDirection * OutwardSpeed;
+				}
+			};
+
+		if (PlayerShare > 0.0f)
+		{
+			RemoveOutwardVelocity(PlayerCharacter, Direction);
+		}
+
+		if (CpuShare > 0.0f)
+		{
+			RemoveOutwardVelocity(CpuCharacter, -Direction);
 		}
 	}
+
+	// 一定要記錄修正後的位置，而不是修正前的位置。
+	PreviousPlayerLocation = PlayerCharacter->GetActorLocation();
+	PreviousCpuLocation = CpuCharacter->GetActorLocation();
 }
 
 FVector AFightingCameraActor::GetDesiredFocusLocation(const AActor* PlayerActor, const AActor* OpponentActor) const

@@ -46,7 +46,7 @@ private:
 	 * 將玩家限制在 CPU 周圍 `MaxFighterDistance` 的水平圓形範圍內。
 	 * 超界時只移除向外的水平速度，保留向內、切線與垂直速度。
 	 */
-	void ConstrainPlayerToMaxDistance(AActor* PlayerActor, const AActor* OpponentActor) const;
+	void ConstrainFightersToMaxDistance(ACharacter* PlayerCharacter,ACharacter* CpuCharacter);
 
 	/** 計算兩名角色中點，並把加上 `FocusHeight` 後的 Z 限制在初始焦點範圍內。 */
 	FVector GetDesiredFocusLocation(const AActor* PlayerActor, const AActor* OpponentActor) const;
@@ -122,4 +122,11 @@ private:
 
 	/** 第一次完成構圖時的焦點高度，用來限制跳躍造成的垂直追蹤。 */
 	float InitialFocusZ = 0.0f;
+	
+	// 記錄上一幀兩名角色的世界座標，用來判斷誰正在往外移動。
+	FVector PreviousPlayerLocation = FVector::ZeroVector;
+	FVector PreviousCpuLocation = FVector::ZeroVector;
+
+	// 是否已經記錄初始位置。
+	bool bHasPreviousFighterLocations = false;
 };
