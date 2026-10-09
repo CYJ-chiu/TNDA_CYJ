@@ -10,6 +10,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimInstance.h"
 
+
 AFightingCpuCharacter::AFightingCpuCharacter()
 {
 	// 測試模式需要在沒有 AI Controller 的 CPU 上消耗 AddMovementInput。
@@ -32,10 +33,52 @@ AFightingCpuCharacter::AFightingCpuCharacter()
 	// AI 恢復後也不能讓 MovementComponent 與共同對手面向競爭 Actor Yaw。
 	GetCharacterMovement()->bUseControllerDesiredRotation = false;
 }
+void AFightingCpuCharacter::HandlePlayerMoveInput(const FVector& WorldDirection,float InputScale)
+{
+	P2MovementDirection = WorldDirection.GetSafeNormal();
+
+	P2MovementScale = FMath::Clamp(InputScale,0.0f,1.0f);
+
+	bHasP2MovementInput =!P2MovementDirection.IsNearlyZero()&& P2MovementScale > KINDA_SMALL_NUMBER;
+
+	if (!bHasP2MovementInput)
+	{
+		P2MovementDirection = FVector::ZeroVector;P2MovementScale = 0.0f;
+   
+	}
+}
+
+void AFightingCpuCharacter::UpdateP2Movement()
+{
+	if (!bHasP2MovementInput)
+	{
+		return;
+	}
+
+	// 攻擊時不允許移動。
+	if (bIsAttacking)
+	{
+		return;
+	}
+
+	// 使用 CPU 自己相對於對手的位置判定方向。
+	
+	// 沿用原本的 CharacterMovement 移動系統。
+	AddMovementInput(P2MovementDirection,P2MovementScale);
+}
 
 void AFightingCpuCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	// 2P 有方向鍵輸入時，優先使用 2P 控制。
+	if (bHasP2MovementInput)
+	{
+		UpdateP2Movement();
+		return;
+	}
+
+
 	UpdateTestMovement();
 }
 

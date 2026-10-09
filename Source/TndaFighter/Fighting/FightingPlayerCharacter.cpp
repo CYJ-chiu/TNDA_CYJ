@@ -125,31 +125,55 @@ void AFightingPlayerCharacter::Move(const FInputActionValue& Value)
 	DoMove(MovementVector.X, MovementVector.Y);
 }
 
-void AFightingPlayerCharacter::P2Move(const FInputActionValue& Value)
+void AFightingPlayerCharacter::P2Move(
+	const FInputActionValue& Value)
 {
-	// 目前先確認 2P 方向鍵能正常觸發。
-	// 下一步再透過 GetOpponent() 將移動轉發給 CPU。
-	const FVector2D MovementVector = Value.Get<FVector2D>();
 
-	// 取得場上原本存在的對手。
-	AFightingCpuCharacter* Cpu =
-		Cast<AFightingCpuCharacter>(GetOpponent());
+	UE_LOG(LogTemp, Warning, TEXT("P2Move Triggered!")); 
+	const FVector2D MovementVector =Value.Get<FVector2D>();
 
-	// 如果對手不是有效的 CPU，就不要繼續。
+	AFightingCpuCharacter* Cpu =Cast<AFightingCpuCharacter>(GetOpponent());
+
 	if (!IsValid(Cpu))
+	{
+		UE_LOG(LogTemp, Error, TEXT("P2 CPU NOT FOUND!"));
+		return;
+	}
+	UE_LOG(LogTemp, Warning, TEXT("P2 CPU FOUND!"));
+	if (!GetController())
 	{
 		return;
 	}
 
-	// 已經成功取得 CPU。
-	// 下一步才把 MovementVector 換算成攝影機方向，
+	// 使用與 1P 相同的格鬥攝影機方向。
+	FRotator Rotation =GetController()->GetControlRotation();
 
+	if (const AFightingPlayerController* PlayerController =Cast<AFightingPlayerController>(GetController()))
+	{
+		PlayerController->GetFightingCameraRotation(Rotation);
+	}
+
+	const FRotator YawRotation(0.0f,Rotation.Yaw,0.0f);
+    const FVector ForwardDirection =FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+    const FVector RightDirection =FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+	FVector WorldMovement =ForwardDirection * MovementVector.Y+ RightDirection * MovementVector.X;
+
+	WorldMovement.Z = 0.0f;
+
+	const float InputScale =FMath::Clamp(WorldMovement.Size(), 0.0f, 1.0f);
+
+	Cpu->HandlePlayerMoveInput(WorldMovement.GetSafeNormal(),InputScale);
 }
 
 void AFightingPlayerCharacter::P2StopMove(const FInputActionValue& Value)
 {
-	// 目前先保留空實作。
-	// 下一步再加入停止 CPU 移動的功能。
+	AFightingCpuCharacter* Cpu =Cast<AFightingCpuCharacter>(GetOpponent());
+
+	if (IsValid(Cpu))
+	{
+		Cpu->HandlePlayerMoveInput(FVector::ZeroVector,0.0f);
+	}
 }
 
 void AFightingPlayerCharacter::StopMove(const FInputActionValue&)

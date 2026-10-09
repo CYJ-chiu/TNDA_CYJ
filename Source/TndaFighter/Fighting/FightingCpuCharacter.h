@@ -54,6 +54,8 @@ public:
 	/** 設定 AI Controller 類別、暫停自動接管，並初始化碰撞與旋轉方式。 */
 	AFightingCpuCharacter();
 
+	// 接收 2P 的移動方向（世界座標）
+	void HandlePlayerMoveInput(const FVector& WorldDirection,float InputScale);
 
 protected:
 
@@ -73,4 +75,16 @@ protected:
 private:
 	/** 集中處理 Editor 用的相對 1P 測試移動，不影響一般 CPU 生命週期。 */
 	void UpdateTestMovement();
+
+	// 2P 目前是否正在按住方向鍵
+	bool bHasP2MovementInput = false;
+
+	// 2P 輸入換算後的世界座標方向
+	FVector P2MovementDirection = FVector::ZeroVector;
+
+	// 2P 輸入強度
+	float P2MovementScale = 0.0f;
+
+	// 每幀執行 2P 移動
+	void UpdateP2Movement();
 };
