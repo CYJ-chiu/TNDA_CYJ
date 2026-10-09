@@ -77,14 +77,14 @@ private:
 	void UpdateTestMovement();
 
 	// 2P 目前是否正在按住方向鍵
-	bool bHasP2MovementInput = false;
+bool bHasP2MovementInput = false;
 
-	// 2P 輸入換算後的世界座標方向
-	FVector P2MovementDirection = FVector::ZeroVector;
+// 2P 輸入換算後的世界座標方向
+FVector P2MovementDirection = FVector::ZeroVector;
 
-	// 2P 輸入強度
-	float P2MovementScale = 0.0f;
+// 2P 輸入強度
+float P2MovementScale = 0.0f;
 
-	// 每幀執行 2P 移動
-	void UpdateP2Movement();
+// 每幀執行 2P 移動
+void UpdateP2Movement();
 };

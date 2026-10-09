@@ -41,6 +41,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> AttackAction;
 
+	/** 2P 使用 Num7 觸發攻擊。 */
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> P2AttackAction;
+
 public:
 	
 	/** 設定碰撞膠囊、移動速度與供其他系統辨識玩家的 Actor Tag。 */
@@ -65,6 +69,9 @@ protected:
 
 	/** 每次按下只送出一次 X；共用入口拒絕時不排隊或重試。 */
 	void Attack(const FInputActionValue& Value);
+
+	/** 將 Num7 攻擊指令轉送給 2P。 */
+	void P2Attack(const FInputActionValue& Value);
 
 	/** 成功出招只清推擠意圖，保留當下方向語意供攻擊期間繼續更新。 */
 	virtual void ClearAttackMovementIntent() override;

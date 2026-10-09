@@ -247,6 +247,20 @@ void AFightingPlayerCharacter::Attack(const FInputActionValue&)
 	TryExecuteCommand(TEXT("X"));
 }
 
+void AFightingPlayerCharacter::P2Attack(const FInputActionValue&)
+{
+	AFightingCpuCharacter* Cpu =
+		Cast<AFightingCpuCharacter>(GetOpponent());
+
+	if (!IsValid(Cpu))
+	{
+		return;
+	}
+
+	// 讓 2P 執行與 1P 相同的 X 攻擊指令。
+	Cpu->TryExecuteCommand(TEXT("X"));
+}
+
 void AFightingPlayerCharacter::ClearAttackMovementIntent()
 {
 	GroundPushIntent = FVector::ZeroVector;
@@ -606,5 +620,12 @@ void AFightingPlayerCharacter::SetupPlayerInputComponent(UInputComponent* Player
 			EnhancedInputComponent->BindAction(P2MoveAction,ETriggerEvent::Completed,this,&AFightingPlayerCharacter::P2StopMove);
             EnhancedInputComponent->BindAction(P2MoveAction,ETriggerEvent::Canceled,this,&AFightingPlayerCharacter::P2StopMove);
 		}
+
+		if (IsValid(P2AttackAction))
+		{
+			EnhancedInputComponent->BindAction(P2AttackAction,ETriggerEvent::Started,this,&AFightingPlayerCharacter::P2Attack);
+		}
 	}
+
+
 }
