@@ -14,6 +14,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "TndaFighter.h"
+#include "FightingCpuCharacter.h"
 
 namespace
 {
@@ -129,6 +130,20 @@ void AFightingPlayerCharacter::P2Move(const FInputActionValue& Value)
 	// 目前先確認 2P 方向鍵能正常觸發。
 	// 下一步再透過 GetOpponent() 將移動轉發給 CPU。
 	const FVector2D MovementVector = Value.Get<FVector2D>();
+
+	// 取得場上原本存在的對手。
+	AFightingCpuCharacter* Cpu =
+		Cast<AFightingCpuCharacter>(GetOpponent());
+
+	// 如果對手不是有效的 CPU，就不要繼續。
+	if (!IsValid(Cpu))
+	{
+		return;
+	}
+
+	// 已經成功取得 CPU。
+	// 下一步才把 MovementVector 換算成攝影機方向，
+
 }
 
 void AFightingPlayerCharacter::P2StopMove(const FInputActionValue& Value)
